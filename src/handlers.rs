@@ -1,19 +1,13 @@
-use std::sync::Arc;
-
-use axum::extract::State;
-use axum::{extract::Json, response::Json as ResponseJson};
-use task_graph::{ExecutionContext, TaskGraph};
-use tracing::{debug, info};
-
-use crate::agent_workflow::RAGWorkflow;
+use crate::agent_workflow::{context_vars, create_agent_workflow};
 use crate::error::{AppError, AppResult};
 use crate::models::{AgentRequest, AgentResponse, HealthResponse};
+use axum::{extract::Json, response::Json as ResponseJson};
+use task_graph::ContextExt;
+use tracing::{debug, info};
 
 /// Health check handler
 /// Returns the service status and health information
-pub async fn health_check(
-    State(_): State<Arc<TaskGraph>>,
-) -> AppResult<ResponseJson<HealthResponse>> {
+pub async fn health_check() -> AppResult<ResponseJson<HealthResponse>> {
     debug!("Health check endpoint called");
 
     let response = HealthResponse::ok();
@@ -25,28 +19,38 @@ pub async fn health_check(
 /// Agent handler for processing user queries
 /// Accepts a JSON payload with a query and returns a processed response
 pub async fn agent_handler(
-    State(graph): State<Arc<TaskGraph>>,
     Json(payload): Json<AgentRequest>,
 ) -> AppResult<ResponseJson<AgentResponse>> {
     info!("Agent endpoint called with query: {}", payload.query);
 
-    let ctx = ExecutionContext::new();
-    let workflow = RAGWorkflow::builder().query(payload.query.clone()).build();
-    ctx.set_typed(workflow).await;
+    // Validate the request
+    if !payload.is_valid() {
+        return Err(AppError::ValidationError(
+            "Query cannot be empty or only whitespace".to_string(),
+        ));
+    }
+
+    let graph = create_agent_workflow(payload.query);
+    if let Err(e) = graph {
+        return Err(AppError::InternalServerError(e.to_string()));
+    }
+    let graph = graph.unwrap();
 
     // run the workflow
-    let result_ctx = graph
-        .execute(ctx)
+    graph
+        .execute()
         .await
         .map_err(|e| AppError::InternalServerError(e.to_string()))?;
 
-    let workflow = result_ctx.get_typed::<RAGWorkflow>().await.ok_or_else(|| {
-        AppError::InternalServerError("Failed to retrieve workflow from context".to_string())
-    })?;
+    let answer: String = graph
+        .context()
+        .get(context_vars::ANSWER)
+        .await
+        .ok_or_else(|| {
+            AppError::InternalServerError("Failed to retrieve answer from context".to_string())
+        })?;
 
-    info!("Result context: {:?}", workflow.clone());
-    let response = AgentResponse::new(workflow.answer);
-
+    let response = AgentResponse::new(answer);
     info!("Successfully processed query, returning response");
     Ok(ResponseJson(response))
 }
@@ -54,47 +58,58 @@ pub async fn agent_handler(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::extract::State;
-    use std::sync::Arc;
-    use task_graph::TaskGraph;
-
-    fn dummy_state() -> State<Arc<TaskGraph>> {
-        State(Arc::new(TaskGraph::new()))
-    }
 
     #[tokio::test]
     async fn test_health_check() {
-        let result = health_check(dummy_state()).await;
+        let result = health_check().await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn test_agent_handler_valid_query() {
+        // Skip test if OPENROUTER_API_KEY is not set
+        if std::env::var("OPENROUTER_API_KEY").is_err() {
+            println!("Skipping test: OPENROUTER_API_KEY not set");
+            return;
+        }
+
         let request = AgentRequest {
             query: "test query".to_string(),
         };
 
-        let result = agent_handler(dummy_state(), Json(request)).await;
+        let result = agent_handler(Json(request)).await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn test_agent_handler_empty_query() {
+        // Skip test if OPENROUTER_API_KEY is not set
+        if std::env::var("OPENROUTER_API_KEY").is_err() {
+            println!("Skipping test: OPENROUTER_API_KEY not set");
+            return;
+        }
+
         let request = AgentRequest {
             query: "".to_string(),
         };
 
-        let result = agent_handler(dummy_state(), Json(request)).await;
+        let result = agent_handler(Json(request)).await;
         assert!(result.is_err());
     }
 
     #[tokio::test]
     async fn test_agent_handler_whitespace_query() {
+        // Skip test if OPENROUTER_API_KEY is not set
+        if std::env::var("OPENROUTER_API_KEY").is_err() {
+            println!("Skipping test: OPENROUTER_API_KEY not set");
+            return;
+        }
+
         let request = AgentRequest {
             query: "   ".to_string(),
         };
 
-        let result = agent_handler(dummy_state(), Json(request)).await;
+        let result = agent_handler(Json(request)).await;
         assert!(result.is_err());
     }
 }

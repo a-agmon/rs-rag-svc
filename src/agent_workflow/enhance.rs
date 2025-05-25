@@ -1,30 +1,37 @@
 use async_trait::async_trait;
-use task_graph::{ExecutionContext, TaskError, TaskNode};
 
+use task_graph::{Context, ContextExt, GraphError, Task};
+use tracing::info;
+
+use crate::agent_workflow::context_vars;
 use crate::agent_workflow::get_llm_agent;
 
-use super::RAGWorkflow;
 use rig::completion::Prompt;
 
-pub struct EnhanceQueryTask;
+#[derive(Debug, Clone)]
+pub struct EnhanceQueryTask {
+    query: String,
+}
+impl EnhanceQueryTask {
+    pub fn new(query: String) -> Self {
+        Self { query }
+    }
+}
 
 #[async_trait]
-impl TaskNode for EnhanceQueryTask {
-    async fn run(&self, ctx: ExecutionContext) -> Result<(), TaskError> {
-        let workflow: RAGWorkflow = ctx.get_typed::<RAGWorkflow>().await.ok_or_else(|| {
-            TaskError::node_error(self.name(), anyhow::anyhow!("No workflow provided"))
-        })?;
-        let enhanced_query = enhance_query(workflow.query).await?;
-        ctx.update_typed(|workflow: &mut RAGWorkflow| {
-            workflow.enhanced_query = enhanced_query;
-        })
-        .await;
+impl Task for EnhanceQueryTask {
+    async fn run(&self, context: Context) -> Result<(), GraphError> {
+        let enhanced_query = enhance_query(self.query.clone())
+            .await
+            .map_err(|e| GraphError::TaskExecutionFailed(e.to_string()))?;
+        info!("Enhanced query: {}", enhanced_query);
+
+        context
+            .set(context_vars::ENHANCED_QUERY, enhanced_query)
+            .await;
+        info!("Enhanced query set in context");
 
         Ok(())
-    }
-
-    fn name(&self) -> &'static str {
-        std::any::type_name::<Self>()
     }
 }
 

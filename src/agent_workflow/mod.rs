@@ -1,27 +1,21 @@
 pub mod enhance;
 pub mod generate;
-use bon::Builder;
 use enhance::EnhanceQueryTask;
 use generate::GenerateAnswerTask;
 use rig::{agent::Agent, providers::openrouter};
-use serde::{Deserialize, Serialize};
 use task_graph::TaskGraph;
 
-#[derive(Debug, Clone, Builder, Serialize, Deserialize)]
-pub struct RAGWorkflow {
-    #[builder(default)]
-    pub query: String,
-    #[builder(default)]
-    pub enhanced_query: String,
-    #[builder(default)]
-    pub answer: String,
+pub mod context_vars {
+    pub const QUERY: &str = "query";
+    pub const ENHANCED_QUERY: &str = "enhanced_query";
+    pub const ANSWER: &str = "answer";
 }
 
-pub fn create_agent_workflow() -> anyhow::Result<TaskGraph> {
+pub fn create_agent_workflow(query: String) -> anyhow::Result<TaskGraph> {
     let mut graph = TaskGraph::new();
-    let enhance_task = graph.add_node(Box::new(EnhanceQueryTask));
-    let generate_task = graph.add_node(Box::new(GenerateAnswerTask));
-    graph.add_always_edge(enhance_task, generate_task)?;
+    let enhance_task = EnhanceQueryTask::new(query);
+    let generate_task = GenerateAnswerTask;
+    graph.add_edge(enhance_task, generate_task)?;
     Ok(graph)
 }
 
