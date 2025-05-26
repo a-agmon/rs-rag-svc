@@ -5,7 +5,6 @@ A **LangGraph-like framework** built with Rust that demonstrates workflow orches
 - **[Axum](https://github.com/tokio-rs/axum)** - Fast, ergonomic web framework for speed and reliability (as service endpoint)
 - **[Rig](https://github.com/0xPlaygrounds/rig)** - Rust library for LLM communication and agent building
 - **[task-graph](https://github.com/a-agmon/rs-task-graph)** - Custom task execution engine for workflow orchestration
-- **Comprehensive observability** with structured logging and tracing
 
 ## 🚀 What is this?
 
