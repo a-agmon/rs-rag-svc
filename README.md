@@ -1,15 +1,67 @@
-# RS RAG Service
+# RS RAG Service - LangGraph-like Framework in Rust
 
-A simple Axum web service with health check and agent endpoints, featuring comprehensive logging with tracing.
+A **LangGraph-like framework** built with Rust that demonstrates workflow orchestration for AI agents. This example showcases how to build high-performance, composable AI workflows using:
+
+- **[Axum](https://github.com/tokio-rs/axum)** - Fast, ergonomic web framework for speed and reliability
+- **[Rig](https://github.com/0xPlaygrounds/rig)** - Rust library for LLM communication and agent building
+- **[task-graph](https://github.com/a-agmon/rs-task-graph)** - Custom task execution engine for workflow orchestration
+- **Comprehensive observability** with structured logging and tracing
+
+## 🚀 What is this?
+
+This repository demonstrates how to build a **LangGraph-inspired workflow system** in Rust, providing:
+
+- **Composable AI Workflows**: Chain together AI tasks using a graph-based execution model
+- **High Performance**: Leveraging Rust's performance and Axum's speed for production workloads  
+- **Type Safety**: Full compile-time guarantees for workflow definitions and data flow
+- **LLM Integration**: Seamless communication with language models via the Rig crate
+- **Production Ready**: Built-in error handling, logging, and observability
+
+## 🏗️ Architecture
+
+The framework follows a **task graph execution model** similar to LangGraph:
+
+1. **Tasks** - Individual units of work (e.g., query enhancement, answer generation)
+2. **Workflow Graph** - Defines task dependencies and execution order
+3. **Context** - Shared state that flows between tasks
+4. **Agent Integration** - LLM-powered tasks using Rig for model communication
+
+### Example Workflow
+
+```rust
+// Create a workflow that enhances a query then generates an answer
+let mut graph = TaskGraph::new();
+let enhance_task = EnhanceQueryTask::new(query);
+let generate_task = GenerateAnswerTask;
+graph.add_edge(enhance_task, generate_task)?;
+
+// Execute the workflow
+graph.execute().await?;
+```
 
 ## Features
 
-- **Health Check**: GET `/health` - Returns service status
-- **Agent Endpoint**: POST `/api/agent1` - Processes queries and returns answers
-- **Comprehensive Logging**: Structured logging with tracing and tracing-subscriber
-- **HTTP Request Tracing**: Automatic logging of all HTTP requests and responses
-- **CORS Support**: Cross-origin resource sharing enabled
-- **Production-Ready Architecture**: Modular design with proper error handling
+### 🔄 Workflow Orchestration
+- **Task Graph Execution**: Define and execute complex AI workflows with dependencies
+- **Context Management**: Shared state that flows seamlessly between workflow tasks
+- **Async Task Execution**: Non-blocking, concurrent task processing
+
+### 🤖 AI Agent Integration  
+- **LLM Communication**: Built-in support for OpenRouter and other LLM providers via Rig
+- **Agent Workflows**: Compose multi-step AI processes (query enhancement → answer generation)
+- **Flexible Prompting**: Configurable system prompts and agent behaviors
+
+### 🚀 High-Performance Web Service
+- **Fast HTTP API**: Built on Axum for maximum throughput and low latency
+- **Health Monitoring**: GET `/health` - Service status and health checks
+- **Agent Endpoint**: POST `/api/agent1` - Execute AI workflows via REST API
+- **CORS Support**: Cross-origin resource sharing for web applications
+
+### 📊 Production-Ready Observability
+- **Structured Logging**: JSON logs with tracing and tracing-subscriber
+- **Request Tracing**: Automatic HTTP request/response logging with performance metrics
+- **Error Handling**: Comprehensive error types with proper HTTP status mapping
+- **Configurable Logging**: Environment-based log level control
 
 ## Getting Started
 
@@ -17,15 +69,35 @@ A simple Axum web service with health check and agent endpoints, featuring compr
 
 - Rust (latest stable version)
 - Cargo
+- OpenRouter API key (for LLM communication)
 
-### Running the Service
+### Setup
 
-1. Install dependencies and run:
+1. **Set up your environment**:
+```bash
+# Required: Set your OpenRouter API key
+export OPENROUTER_API_KEY="your-api-key-here"
+
+# Optional: Configure host and port
+export HOST="0.0.0.0"
+export PORT="8080"
+```
+
+2. **Install dependencies and run**:
 ```bash
 cargo run
 ```
 
 The service will start on `http://0.0.0.0:8080`
+
+### Quick Test
+
+Test the workflow execution:
+```bash
+curl -X POST http://localhost:8080/api/agent1 \
+  -H "Content-Type: application/json" \
+  -d '{"query": "Explain quantum computing in simple terms"}'
+```
 
 ### Logging Configuration
 
@@ -118,25 +190,82 @@ cargo test
 
 ```
 src/
-├── main.rs           # Application entry point
-├── lib.rs            # Library root with module declarations
-├── app.rs            # Application setup and initialization
-├── config.rs         # Configuration management
-├── error.rs          # Custom error types and handling
-├── handlers.rs       # HTTP request handlers
-├── models.rs         # Request/response data structures
-└── routes.rs         # Route definitions and organization
+├── main.rs                    # Application entry point
+├── lib.rs                     # Library root with module declarations
+├── app.rs                     # Application setup and initialization
+├── config.rs                  # Configuration management
+├── error.rs                   # Custom error types and handling
+├── handlers.rs                # HTTP request handlers
+├── models.rs                  # Request/response data structures
+├── routes.rs                  # Route definitions and organization
+└── agent_workflow/            # LangGraph-like workflow implementation
+    ├── mod.rs                 # Workflow orchestration and LLM agent setup
+    ├── enhance.rs             # Query enhancement task
+    └── generate.rs            # Answer generation task
 ```
 
 ### Module Responsibilities
 
+#### Core Web Service
 - **`main.rs`**: Binary entry point, starts the server
 - **`app.rs`**: Application initialization, tracing setup, router creation
 - **`config.rs`**: Environment-based configuration management
 - **`error.rs`**: Custom error types with proper HTTP status mapping
-- **`handlers.rs`**: Business logic for each endpoint with comprehensive logging
+- **`handlers.rs`**: HTTP handlers that orchestrate workflow execution
 - **`models.rs`**: Data structures for API requests/responses with validation
 - **`routes.rs`**: Route organization and endpoint definitions
+
+#### Workflow Engine (`agent_workflow/`)
+- **`mod.rs`**: Workflow graph creation, LLM agent initialization, and context management
+- **`enhance.rs`**: Task for enhancing user queries using LLM reasoning
+- **`generate.rs`**: Task for generating final answers based on enhanced queries
+
+### Key Dependencies
+
+- **`rig-core`**: LLM communication and agent building
+- **`task-graph`**: Custom workflow orchestration engine
+- **`axum`**: High-performance async web framework
+- **`tokio`**: Async runtime for concurrent task execution
+
+## 🔄 Workflow Concepts
+
+### LangGraph-like Design
+
+This framework implements core LangGraph concepts in Rust:
+
+- **Nodes (Tasks)**: Individual processing units that implement specific logic
+- **Edges**: Dependencies between tasks that define execution order  
+- **State (Context)**: Shared data that flows through the workflow
+- **Conditional Routing**: Tasks can determine next steps based on results
+- **Async Execution**: Non-blocking task processing with proper error handling
+
+### Example: Query Enhancement Workflow
+
+```rust
+// 1. Create workflow graph
+let mut graph = TaskGraph::new();
+
+// 2. Define tasks
+let enhance_task = EnhanceQueryTask::new(user_query);
+let generate_task = GenerateAnswerTask;
+
+// 3. Connect tasks (enhance → generate)
+graph.add_edge(enhance_task, generate_task)?;
+
+// 4. Execute workflow
+graph.execute().await?;
+
+// 5. Retrieve results from context
+let answer = graph.context().get("answer").await?;
+```
+
+### Benefits over Python LangGraph
+
+- **Performance**: Rust's zero-cost abstractions and memory safety
+- **Type Safety**: Compile-time guarantees for workflow correctness
+- **Concurrency**: Native async/await with excellent performance
+- **Memory Efficiency**: No garbage collection overhead
+- **Production Ready**: Built-in error handling and observability
 
 ## Logging Features
 

@@ -1563,7 +1563,7 @@ dependencies = [
 [[package]]
 name = "task-graph"
 version = "0.1.0"
-source = "git+https://github.com/a-agmon/rs-task-graph.git#22e62e17ff1ffce101f9fb26f5a9edae8453092d"
+source = "git+https://github.com/a-agmon/rs-task-graph.git#29f50cf4f17f38a12f6ef2f548e002de6a2ce92c"
 dependencies = [
  "async-trait",
  "futures",
