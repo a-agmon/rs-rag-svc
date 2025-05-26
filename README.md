@@ -82,27 +82,21 @@ graph.execute().await?;
 
 ## Features
 
-### 🔄 Workflow Orchestration
+### Workflow Orchestration
 - **Task Graph Execution**: Define and execute complex AI workflows with dependencies
 - **Context Management**: Shared state that flows seamlessly between workflow tasks
 - **Async Task Execution**: Non-blocking, concurrent task processing
 
-### 🤖 AI Agent Integration  
+### AI Agent Integration  
 - **LLM Communication**: Built-in support for OpenRouter and other LLM providers via Rig
 - **Agent Workflows**: Compose multi-step AI processes (query enhancement → answer generation)
 - **Flexible Prompting**: Configurable system prompts and agent behaviors
 
-### 🚀 High-Performance Web Service
+### High-Performance Web Service
 - **Fast HTTP API**: Built on Axum for maximum throughput and low latency
 - **Health Monitoring**: GET `/health` - Service status and health checks
 - **Agent Endpoint**: POST `/api/agent1` - Execute AI workflows via REST API
 - **CORS Support**: Cross-origin resource sharing for web applications
-
-### 📊 Production-Ready Observability
-- **Structured Logging**: JSON logs with tracing and tracing-subscriber
-- **Request Tracing**: Automatic HTTP request/response logging with performance metrics
-- **Error Handling**: Comprehensive error types with proper HTTP status mapping
-- **Configurable Logging**: Environment-based log level control
 
 ## Getting Started
 
@@ -110,7 +104,7 @@ graph.execute().await?;
 
 - Rust (latest stable version)
 - Cargo
-- OpenRouter API key (for LLM communication)
+- OpenRouter API key (for LLM communication) / or any other provider supported by Rig
 
 ### Setup
 
@@ -268,7 +262,7 @@ src/
 - **`axum`**: High-performance async web framework
 - **`tokio`**: Async runtime for concurrent task execution
 
-## 🔄 Workflow Concepts
+## Workflow Concepts
 
 ### LangGraph-like Design
 
@@ -308,10 +302,3 @@ let answer = graph.context().get("answer").await?;
 - **Memory Efficiency**: No garbage collection overhead
 - **Production Ready**: Built-in error handling and observability
 
-## Logging Features
-
-- **Request/Response Logging**: All HTTP requests are automatically logged
-- **Structured Logs**: JSON-structured logs for easy parsing
-- **Error Tracking**: Comprehensive error logging with context
-- **Performance Monitoring**: Request duration and status code tracking
-- **Configurable Levels**: Debug, info, warn, and error logging 
