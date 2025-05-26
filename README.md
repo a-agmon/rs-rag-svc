@@ -1,4 +1,4 @@
-# RS RAG Service - LangGraph-like Framework in Rust
+# RS RAG Service - LangGraph-like service template in Rust
 
 A **LangGraph-like framework** built with Rust that demonstrates workflow orchestration for AI agents. This example showcases how to build a service endpoint that can trigger and manage high-performance, composable AI workflows using:
 
