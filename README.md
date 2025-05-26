@@ -6,7 +6,7 @@ A **LangGraph-like framework** built with Rust that demonstrates workflow orches
 - **[Rig](https://github.com/0xPlaygrounds/rig)** - Rust library for LLM communication and agent building
 - **[task-graph](https://github.com/a-agmon/rs-task-graph)** - Custom task execution engine for workflow orchestration
 
-## 🚀 What is this?
+## What is this?
 
 This repository demonstrates how to build a **LangGraph-inspired workflow system** in Rust, providing:
 
@@ -16,17 +16,59 @@ This repository demonstrates how to build a **LangGraph-inspired workflow system
 - **LLM Integration**: Seamless communication with language models via the Rig crate
 - **Production Ready**: Built-in error handling, logging, and observability
 
-## 🏗️ Architecture
+## Architecture
 
 The framework follows a **task graph execution model** similar to LangGraph:
 
 1. **Tasks** - Individual units of work (e.g., query enhancement, answer generation)
 2. **Workflow Graph** - Defines task dependencies and execution order
-3. **Context** - Shared state that flows between tasks
+3. **Context** - Shared state that flows between tasks via which tasks can communicate
 4. **Agent Integration** - LLM-powered tasks using Rig for model communication
 
 ### Example Workflow
 
+Example of a query enhancement task
+```rust
+#[derive(Debug, Clone)]
+pub struct EnhanceQueryTask {
+    query: String,
+}
+impl EnhanceQueryTask {
+    pub fn new(query: String) -> Self {
+        Self { query }
+    }
+}
+
+#[async_trait]
+impl Task for EnhanceQueryTask {
+    async fn run(&self, context: Context) -> Result<(), GraphError> {
+        let enhanced_query = enhance_query(self.query.clone())
+            .await
+            .map_err(|e| GraphError::TaskExecutionFailed(e.to_string()))?;
+        info!("Enhanced query: {}", enhanced_query);
+
+        context
+            .set(context_vars::ENHANCED_QUERY, enhanced_query)
+            .await;
+        info!("Enhanced query set in context");
+
+        Ok(())
+    }
+}
+
+const ENHANCE_QUERY_PROMPT: &str = r#"You are a search assistant.
+Improve the user query for retrieval.
+Rewrite it and add keywords so that a similarity search will find more relevant documents.
+Keep it short (one sentence).
+"#;
+
+async fn enhance_query(query: String) -> anyhow::Result<String> {
+    let agent = get_llm_agent(ENHANCE_QUERY_PROMPT)?;
+    let response = agent.prompt(query).await?;
+    Ok(response)
+}
+```
+Chain and execute all tasks. Get output from the context at the end of the flow.
 ```rust
 // Create a workflow that enhances a query then generates an answer
 let mut graph = TaskGraph::new();
