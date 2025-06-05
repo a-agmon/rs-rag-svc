@@ -25,9 +25,9 @@ async fn main() {
     // Create TCP listener
     let listener = match tokio::net::TcpListener::bind(&config.bind_address()).await {
         Ok(listener) => {
-            info!("🚀 Server running on {}", config.server_url());
-            info!("📋 Health check: GET /health");
-            info!("🤖 Agent endpoint: POST /api/agent1");
+            info!("Server running on {}", config.server_url());
+            info!("Health check: GET /health");
+            info!("Agent endpoint: POST /api/agent1");
             listener
         }
         Err(e) => {
