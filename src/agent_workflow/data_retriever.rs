@@ -46,7 +46,7 @@ impl Task for DataRetrieverTask {
     async fn run(&self, context: Context) -> Result<(), GraphError> {
         info!("Retrieving data");
         let query: String = context
-            .get(context_vars::ENHANCED_QUERY)
+            .get(context_vars::QUERY)
             .await
             .ok_or_else(|| GraphError::TaskExecutionFailed("Missing enhanced query".to_string()))?;
 
@@ -56,11 +56,12 @@ impl Task for DataRetrieverTask {
             GraphError::TaskExecutionFailed(format!("Failed to retrieve data: {}", e))
         })?;
 
-        info!("Retrieved {} search results", search_response.organic.len());
+        let empty_vec = Vec::new();
+        let items = search_response.items.as_ref().unwrap_or(&empty_vec);
+        info!("Retrieved {} search results", items.len());
 
         // Filter URLs to only include scrapeable ones
-        let scrapeable_results: Vec<_> = search_response
-            .organic
+        let scrapeable_results: Vec<_> = items
             .iter()
             .filter(|result| {
                 let is_scrapeable = is_scrapeable_url(&result.link);
@@ -118,22 +119,40 @@ impl Task for DataRetrieverTask {
     }
 }
 
-const BASE_URL: &str = "https://google.serper.dev/search";
-const SEARCH_TARGET: &str = "site:www.btselem.org";
+const GOOGLE_CSE_BASE_URL: &str = "https://www.googleapis.com/customsearch/v1";
+const SEARCH_ENGINE_ID: &str = "966c36571122845c0";
 
 async fn retrieve_data(query: String) -> anyhow::Result<SearchResponse> {
-    let api_key =
-        std::env::var("SERPER_API_KEY").map_err(|_| anyhow::anyhow!("SERPER_API_KEY not set"))?;
+    let api_key = std::env::var("GOOGLE_CSE_API_KEY")
+        .map_err(|_| anyhow::anyhow!("GOOGLE_CSE_API_KEY not set"))?;
+
     let client = reqwest::Client::builder().build()?;
-    let query_encoded = query.split_whitespace().collect::<Vec<_>>().join("+");
+
     let url = format!(
-        "{}?q={}+{}&apiKey={}&num=5&tbs=qdr:3y",
-        BASE_URL, query_encoded, SEARCH_TARGET, api_key
+        "{}?key={}&cx={}&q={}",
+        GOOGLE_CSE_BASE_URL,
+        api_key,
+        SEARCH_ENGINE_ID,
+        urlencoding::encode(&query)
     );
-    info!("Executing search with URL: {}", url);
-    let request = client.request(reqwest::Method::GET, &url);
-    let response = request.send().await?;
+
+    info!(
+        "Executing Google CSE search with URL: {}",
+        url.replace(&api_key, "***API_KEY***")
+    );
+
+    let response = client.get(&url).send().await?;
+
     info!("Received response status: {}", response.status());
+
+    if !response.status().is_success() {
+        let error_text = response.text().await?;
+        return Err(anyhow::anyhow!(
+            "Google CSE API request failed: {}",
+            error_text
+        ));
+    }
+
     let body = response.text().await?;
     debug!("Response body: {}", body);
 
@@ -187,25 +206,16 @@ mod tests {
         assert!(result.is_ok(), "API call should succeed");
 
         let search_response = result.unwrap();
-        assert!(
-            !search_response.organic.is_empty(),
-            "Response should contain organic results"
-        );
-        assert!(
-            !search_response.search_parameters.q.is_empty(),
-            "Search parameters should contain query"
-        );
+        let empty_vec = Vec::new();
+        let items = search_response.items.as_ref().unwrap_or(&empty_vec);
+        assert!(!items.is_empty(), "Response should contain search results");
 
-        println!("Retrieved {} search results", search_response.organic.len());
-        println!("Search query: {}", search_response.search_parameters.q);
+        println!("Retrieved {} search results", items.len());
 
-        if !search_response.organic.is_empty() {
-            println!("First result title: {}", search_response.organic[0].title);
-            println!("First result link: {}", search_response.organic[0].link);
-            println!(
-                "First result snippet: {}",
-                search_response.organic[0].snippet
-            );
+        if !items.is_empty() {
+            println!("First result title: {}", items[0].title);
+            println!("First result link: {}", items[0].link);
+            println!("First result snippet: {}", items[0].snippet);
         }
     }
 
@@ -231,8 +241,7 @@ mod tests {
         );
 
         // Verify the search results were stored in context
-        let search_results: Option<Vec<crate::agent_workflow::OrganicResult>> =
-            context.get(context_vars::SEARCH_RESULTS).await;
+        let search_results: Option<Vec<String>> = context.get(context_vars::SEARCH_RESULTS).await;
         assert!(
             search_results.is_some(),
             "Search results should be stored in context"
@@ -285,23 +294,18 @@ mod tests {
         );
 
         let search_response = result.unwrap();
-        assert!(
-            !search_response.organic.is_empty(),
-            "Response should contain results"
-        );
+        let empty_vec = Vec::new();
+        let items = search_response.items.as_ref().unwrap_or(&empty_vec);
+        assert!(!items.is_empty(), "Response should contain results");
 
-        println!(
-            "Retrieved {} results for multi-keyword query",
-            search_response.organic.len()
-        );
+        println!("Retrieved {} results for multi-keyword query", items.len());
 
         // Print details about each result
-        for (index, result) in search_response.organic.iter().enumerate() {
+        for (index, result) in items.iter().enumerate() {
             println!("Result {}: {}", index + 1, result.title);
             println!("  Link: {}", result.link);
-            println!("  Position: {}", result.position);
-            if let Some(date) = &result.date {
-                println!("  Date: {}", date);
+            if let Some(display_link) = &result.display_link {
+                println!("  Display Link: {}", display_link);
             }
         }
     }
@@ -315,23 +319,18 @@ mod tests {
 
         let search_response = result.unwrap();
 
-        // Test search parameters structure
-        assert_eq!(search_response.search_parameters.engine, "google");
-        assert_eq!(search_response.search_parameters.search_type, "search");
-        assert!(
-            search_response
-                .search_parameters
-                .q
-                .contains("site:www.btselem.org")
-        );
+        // Test search information structure
+        if let Some(search_info) = &search_response.search_information {
+            println!("Search time: {}s", search_info.search_time);
+            println!("Total results: {}", search_info.total_results);
+        }
 
-        // Test organic results structure
-        assert!(
-            !search_response.organic.is_empty(),
-            "Should have organic results"
-        );
+        // Test search results structure
+        let empty_vec = Vec::new();
+        let items = search_response.items.as_ref().unwrap_or(&empty_vec);
+        assert!(!items.is_empty(), "Should have search results");
 
-        for result in &search_response.organic {
+        for result in items {
             assert!(!result.title.is_empty(), "Result should have a title");
             assert!(!result.link.is_empty(), "Result should have a link");
             assert!(
@@ -339,21 +338,14 @@ mod tests {
                 "Link should be from btselem.org"
             );
             assert!(!result.snippet.is_empty(), "Result should have a snippet");
-            assert!(result.position > 0, "Position should be greater than 0");
         }
 
         println!("Search response structure is valid");
-        println!("Total results: {}", search_response.organic.len());
-        println!("Query: {}", search_response.search_parameters.q);
+        println!("Total results: {}", items.len());
 
         // Show summary of results
-        for (i, result) in search_response.organic.iter().enumerate().take(3) {
-            println!(
-                "{}. {} (Position: {})",
-                i + 1,
-                result.title,
-                result.position
-            );
+        for (i, result) in items.iter().enumerate().take(3) {
+            println!("{}. {}", i + 1, result.title);
         }
     }
 }

@@ -65,29 +65,44 @@ pub fn get_llm_agent(prompt: &str) -> anyhow::Result<Agent<openrouter::Completio
     Ok(agent)
 }
 
-// -- data structures  that capture the search results
+// -- data structures that capture the Google Custom Search API results
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SearchResponse {
-    #[serde(rename = "searchParameters")]
-    pub search_parameters: SearchParameters,
-    pub organic: Vec<OrganicResult>,
+    pub kind: String,
+    pub items: Option<Vec<OrganicResult>>,
+    #[serde(rename = "searchInformation")]
+    pub search_information: Option<SearchInformation>,
+    pub queries: Option<Queries>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct SearchParameters {
-    pub q: String,
-    #[serde(rename = "type")]
-    pub search_type: String,
-    pub engine: String,
+pub struct SearchInformation {
+    #[serde(rename = "totalResults")]
+    pub total_results: String,
+    #[serde(rename = "searchTime")]
+    pub search_time: f64,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Queries {
+    pub request: Option<Vec<RequestQuery>>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct RequestQuery {
+    pub title: String,
+    #[serde(rename = "searchTerms")]
+    pub search_terms: String,
+    pub count: u32,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct OrganicResult {
     pub title: String,
     pub link: String,
-    pub snippet: String,
-    pub position: u32,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub date: Option<String>,
+    #[serde(rename = "htmlSnippet")]
+    pub snippet: String, // Maps htmlSnippet to snippet for consistency
+    #[serde(rename = "displayLink")]
+    pub display_link: Option<String>,
 }

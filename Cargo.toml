@@ -7,6 +7,10 @@ edition = "2024"
 name = "web-scraper-test"
 path = "src/bin/web_scraper_test.rs"
 
+[[bin]]
+name = "google-search-test"
+path = "src/bin/google_search_test.rs"
+
 [dependencies]
 axum = "0.8.4"
 tokio = { version = "1.0", features = ["full"] }
@@ -24,3 +28,4 @@ headless_chrome = "1.0.17"
 scraper = "0.23.1"
 futures = "0.3"
 once_cell = "1.21.0"
+urlencoding = "2.1"

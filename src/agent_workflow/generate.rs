@@ -1,4 +1,3 @@
-use crate::agent_workflow::OrganicResult;
 use crate::agent_workflow::context_vars;
 use crate::agent_workflow::get_llm_agent;
 use async_trait::async_trait;
@@ -44,7 +43,7 @@ Answer:
 "#;
 
 const SYSTEM_PROMPT: &str = r#"
-You are a helpful research assistant. You are given a question and a list of relevant texts.
+You are a helpful research assistant. You are given a question and a list of scraped texts.
 Your task is to answer the question based on the texts only. Do not make up any information.
 note the dates in the texts to make sure you are using the most recent information.
 "#;
