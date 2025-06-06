@@ -138,7 +138,8 @@ async fn main() -> Result<()> {
     println!("{}", "=".repeat(50));
 
     // Your provided API key
-    let api_key = "AIzaSyCkKlLvDYL8WFsGD3ZgEQGEqhFwJjmevsI";
+    let api_key = std::env::var("GOOGLE_CSE_API_KEY")
+        .map_err(|e| anyhow::anyhow!("GOOGLE_CSE_API_KEY not set: {}", e))?;
 
     // You'll need to create a Custom Search Engine and get the CX ID
     // For now, let's try a few common test approaches
@@ -171,7 +172,7 @@ async fn main() -> Result<()> {
         for query in &test_queries {
             println!("\n{}", "─".repeat(40));
 
-            match test_google_search(api_key, cx, query).await {
+            match test_google_search(&api_key, cx, query).await {
                 Ok(response) => {
                     println!("✅ Search successful!");
 
