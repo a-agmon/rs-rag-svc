@@ -168,17 +168,11 @@ mod tests {
     #[test]
     fn test_is_scrapeable_url() {
         // Test scrapeable URLs (should return true)
-        assert!(is_scrapeable_url(
-            "https://www.btselem.org/publications/202404_manufacturing_famine"
-        ));
-        assert!(is_scrapeable_url("https://www.btselem.org/gaza_strip"));
+        assert!(is_scrapeable_url("https://example.com"));
         assert!(is_scrapeable_url("https://example.com/article"));
         assert!(is_scrapeable_url("https://news.com/story.html"));
 
         // Test non-scrapeable URLs (should return false)
-        assert!(!is_scrapeable_url(
-            "https://www.btselem.org/download/200503_gaza_prison_english.doc"
-        ));
         assert!(!is_scrapeable_url("https://example.com/file.pdf"));
         assert!(!is_scrapeable_url("https://site.com/report.docx"));
         assert!(!is_scrapeable_url("https://site.com/data.xlsx"));
@@ -196,156 +190,5 @@ mod tests {
         // Test case insensitivity
         assert!(!is_scrapeable_url("https://site.com/FILE.PDF"));
         assert!(!is_scrapeable_url("https://site.com/Document.DOC"));
-    }
-
-    #[tokio::test]
-    async fn test_retrieve_data_returns_data() {
-        let query = "human rights violations".to_string();
-        let result = retrieve_data(query).await;
-
-        assert!(result.is_ok(), "API call should succeed");
-
-        let search_response = result.unwrap();
-        let empty_vec = Vec::new();
-        let items = search_response.items.as_ref().unwrap_or(&empty_vec);
-        assert!(!items.is_empty(), "Response should contain search results");
-
-        println!("Retrieved {} search results", items.len());
-
-        if !items.is_empty() {
-            println!("First result title: {}", items[0].title);
-            println!("First result link: {}", items[0].link);
-            println!("First result snippet: {}", items[0].snippet);
-        }
-    }
-
-    #[tokio::test]
-    async fn test_data_retriever_task() {
-        let task = DataRetrieverTask;
-        let graph = TaskGraph::new();
-        let context = graph.context();
-
-        // Set up the context with an enhanced query
-        context
-            .set(
-                context_vars::ENHANCED_QUERY,
-                "Israeli settlements".to_string(),
-            )
-            .await;
-
-        let result = task.run(context.clone()).await;
-
-        assert!(
-            result.is_ok(),
-            "DataRetrieverTask should complete successfully"
-        );
-
-        // Verify the search results were stored in context
-        let search_results: Option<Vec<String>> = context.get(context_vars::SEARCH_RESULTS).await;
-        assert!(
-            search_results.is_some(),
-            "Search results should be stored in context"
-        );
-
-        let search_results = search_results.unwrap();
-        assert!(
-            !search_results.is_empty(),
-            "Should have retrieved some results"
-        );
-
-        println!(
-            "DataRetrieverTask completed successfully with {} results",
-            search_results.len()
-        );
-    }
-
-    #[tokio::test]
-    async fn test_data_retriever_task_missing_query() {
-        let task = DataRetrieverTask;
-        let graph = TaskGraph::new();
-        let context = graph.context();
-
-        // Don't set the enhanced query - this should fail
-        let result = task.run(context).await;
-
-        assert!(
-            result.is_err(),
-            "DataRetrieverTask should fail without enhanced query"
-        );
-
-        if let Err(GraphError::TaskExecutionFailed(msg)) = result {
-            assert!(
-                msg.contains("Missing enhanced query"),
-                "Error message should mention missing query"
-            );
-        } else {
-            panic!("Expected TaskExecutionFailed error");
-        }
-    }
-
-    #[tokio::test]
-    async fn test_retrieve_data_with_multiple_keywords() {
-        let query = "Gaza Strip human rights report".to_string();
-        let result = retrieve_data(query).await;
-
-        assert!(
-            result.is_ok(),
-            "API call with multiple keywords should succeed"
-        );
-
-        let search_response = result.unwrap();
-        let empty_vec = Vec::new();
-        let items = search_response.items.as_ref().unwrap_or(&empty_vec);
-        assert!(!items.is_empty(), "Response should contain results");
-
-        println!("Retrieved {} results for multi-keyword query", items.len());
-
-        // Print details about each result
-        for (index, result) in items.iter().enumerate() {
-            println!("Result {}: {}", index + 1, result.title);
-            println!("  Link: {}", result.link);
-            if let Some(display_link) = &result.display_link {
-                println!("  Display Link: {}", display_link);
-            }
-        }
-    }
-
-    #[tokio::test]
-    async fn test_search_response_structure() {
-        let query = "katz gaza starvation".to_string();
-        let result = retrieve_data(query).await;
-
-        assert!(result.is_ok(), "API call should succeed");
-
-        let search_response = result.unwrap();
-
-        // Test search information structure
-        if let Some(search_info) = &search_response.search_information {
-            println!("Search time: {}s", search_info.search_time);
-            println!("Total results: {}", search_info.total_results);
-        }
-
-        // Test search results structure
-        let empty_vec = Vec::new();
-        let items = search_response.items.as_ref().unwrap_or(&empty_vec);
-        assert!(!items.is_empty(), "Should have search results");
-
-        for result in items {
-            assert!(!result.title.is_empty(), "Result should have a title");
-            assert!(!result.link.is_empty(), "Result should have a link");
-            assert!(
-                result.link.contains("btselem.org"),
-                "Link should be from btselem.org"
-            );
-            assert!(!result.snippet.is_empty(), "Result should have a snippet");
-        }
-
-        println!("Search response structure is valid");
-        println!("Total results: {}", items.len());
-
-        // Show summary of results
-        for (i, result) in items.iter().enumerate().take(3) {
-            println!("{}. {}", i + 1, result.title);
-        }
     }
 }

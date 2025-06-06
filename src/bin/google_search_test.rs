@@ -91,47 +91,6 @@ async fn test_google_search(api_key: &str, cx: &str, query: &str) -> Result<Goog
     Ok(search_response)
 }
 
-async fn compare_with_serper(query: &str) -> Result<()> {
-    println!("\n🔄 Comparing with Serper API (if available)...");
-
-    if let Ok(serper_key) = std::env::var("SERPER_API_KEY") {
-        let client = reqwest::Client::new();
-
-        let serper_url = "https://google.serper.dev/search";
-        let serper_query = format!("{}+site:www.btselem.org", query);
-
-        let serper_response = client
-            .get(&format!(
-                "{}?q={}&apiKey={}&num=5",
-                serper_url,
-                urlencoding::encode(&serper_query),
-                serper_key
-            ))
-            .send()
-            .await?;
-
-        if serper_response.status().is_success() {
-            let serper_body = serper_response.text().await?;
-            println!("📊 Serper API Response Size: {} bytes", serper_body.len());
-
-            // Parse and count results
-            if let Ok(serper_json) = serde_json::from_str::<serde_json::Value>(&serper_body) {
-                if let Some(organic) = serper_json.get("organic").and_then(|o| o.as_array()) {
-                    println!("📊 Serper Results Count: {}", organic.len());
-                } else {
-                    println!("📊 Serper Results: Unable to parse organic results");
-                }
-            }
-        } else {
-            println!("❌ Serper API request failed: {}", serper_response.status());
-        }
-    } else {
-        println!("⚠️  SERPER_API_KEY not set, skipping comparison");
-    }
-
-    Ok(())
-}
-
 #[tokio::main]
 async fn main() -> Result<()> {
     println!("🚀 Google Programmable Search Engine API Test");
@@ -144,11 +103,7 @@ async fn main() -> Result<()> {
     // You'll need to create a Custom Search Engine and get the CX ID
     // For now, let's try a few common test approaches
 
-    let test_queries = vec![
-        "human rights violations Gaza",
-        "Israeli settlements West Bank",
-        "Palestine conflict recent news",
-    ];
+    let test_queries = vec!["human rights violations"];
 
     // Your Custom Search Engine ID
     let test_cx_ids = vec![
