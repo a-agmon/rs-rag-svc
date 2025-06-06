@@ -113,6 +113,9 @@ graph.execute().await?;
 # Required: Set your OpenRouter API key
 export OPENROUTER_API_KEY="your-api-key-here"
 
+# Required: Set your Serper API key for search
+export SERPER_API_KEY="your-serper-api-key-here"
+
 # Optional: Configure host and port
 export HOST="0.0.0.0"
 export PORT="8080"

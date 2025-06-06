@@ -1,7 +1,9 @@
 use crate::agent_workflow::{context_vars, create_agent_workflow};
 use crate::error::{AppError, AppResult};
 use crate::models::{AgentRequest, AgentResponse, HealthResponse};
-use axum::{extract::Json, response::Json as ResponseJson};
+use crate::scraper::WebScraper;
+use axum::{Extension, extract::Json, response::Json as ResponseJson};
+use serde::{Deserialize, Serialize};
 use task_graph::ContextExt;
 use tracing::{debug, info};
 
@@ -52,6 +54,47 @@ pub async fn agent_handler(
 
     let response = AgentResponse::new(answer);
     info!("Successfully processed query, returning response");
+    Ok(ResponseJson(response))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ScrapeRequest {
+    pub url: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ScrapeResponse {
+    pub url: String,
+    pub text: String,
+    pub length: usize,
+}
+
+/// Web scraper handler - demonstrates shared scraper usage
+/// Accepts a URL and returns the extracted text content
+pub async fn scrape_handler(
+    Extension(scraper): Extension<WebScraper>,
+    Json(payload): Json<ScrapeRequest>,
+) -> AppResult<ResponseJson<ScrapeResponse>> {
+    info!("Scrape endpoint called for URL: {}", payload.url);
+
+    // Validate URL
+    if payload.url.trim().is_empty() {
+        return Err(AppError::ValidationError("URL cannot be empty".to_string()));
+    }
+
+    // Scrape the URL using shared scraper instance
+    let text = scraper
+        .scrape_text(&payload.url)
+        .await
+        .map_err(|e| AppError::InternalServerError(format!("Scraping failed: {}", e)))?;
+
+    let response = ScrapeResponse {
+        url: payload.url,
+        length: text.len(),
+        text,
+    };
+
+    info!("Successfully scraped {} characters", response.length);
     Ok(ResponseJson(response))
 }
 

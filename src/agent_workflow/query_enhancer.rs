@@ -9,18 +9,20 @@ use crate::agent_workflow::get_llm_agent;
 use rig::completion::Prompt;
 
 #[derive(Debug, Clone)]
-pub struct EnhanceQueryTask {
+pub struct QueryEnhanceTask {
     query: String,
 }
-impl EnhanceQueryTask {
+impl QueryEnhanceTask {
     pub fn new(query: String) -> Self {
         Self { query }
     }
 }
 
 #[async_trait]
-impl Task for EnhanceQueryTask {
+impl Task for QueryEnhanceTask {
     async fn run(&self, context: Context) -> Result<(), GraphError> {
+        context.set(context_vars::QUERY, self.query.clone()).await;
+
         let enhanced_query = enhance_query(self.query.clone())
             .await
             .map_err(|e| GraphError::TaskExecutionFailed(e.to_string()))?;
@@ -29,20 +31,20 @@ impl Task for EnhanceQueryTask {
         context
             .set(context_vars::ENHANCED_QUERY, enhanced_query)
             .await;
-        info!("Enhanced query set in context");
 
         Ok(())
     }
 }
 
-const ENHANCE_QUERY_PROMPT: &str = r#"You are a search assistant.
-Improve the user query for retrieval.
-Rewrite it and add keywords so that a similarity search will find more relevant documents.
-Keep it short (one sentence).
+const ENHANCE_QUERY_PROMPT: &str = r#"
+You are a search assistant, helping users refine their web site search queries.
+You are given a user query and you need to rewrite it in a way that will maximize the number of relevant documents found in a google search.
+Output only the list of words and terms, no other text, no commas or other punctuation.
 "#;
 
 async fn enhance_query(query: String) -> anyhow::Result<String> {
     let agent = get_llm_agent(ENHANCE_QUERY_PROMPT)?;
-    let response = agent.prompt(query).await?;
+    let q = format!("\nUser query:\n{}", query);
+    let response = agent.prompt(q).await?;
     Ok(response)
 }

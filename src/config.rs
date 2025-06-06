@@ -17,7 +17,7 @@ impl Config {
                 .parse()
                 .expect("PORT must be a valid number"),
             log_level: env::var("RUST_LOG")
-                .unwrap_or_else(|_| "rs_rag_svc=debug,tower_http=debug".to_string()),
+                .unwrap_or_else(|_| "rs_rag_svc=info,tower_http=debug".to_string()),
         }
     }
 
